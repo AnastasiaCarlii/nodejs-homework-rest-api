@@ -3,12 +3,17 @@ const addSchema = Joi.object({
   name: Joi.string().required(),
   email: Joi.string().required(),
   phone: Joi.string().required(),
+  favorite: Joi.boolean(),
 });
 
-const updateShema = Joi.object({
+const updateSchema = Joi.object({
   name: Joi.string(),
   email: Joi.string().email(),
   phone: Joi.string(),
 }).or("name", "email", "phone");
 
-module.exports = { addSchema, updateShema };
+const updateFavoriteSchema = Joi.object({
+  favorite: Joi.boolean().required(),
+});
+
+module.exports = { addSchema, updateSchema, updateFavoriteSchema };
