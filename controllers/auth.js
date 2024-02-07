@@ -5,11 +5,13 @@ const path = require("path");
 const fs = require("fs/promises");
 const Jimp = require("jimp");
 
+const { v4: uuidv4 } = require("uuid");
+
 require("dotenv").config();
 
 const { User } = require("../models/user");
 const ctrlWrapper = require("../helpers/ctrlWrapper");
-const { HttpError } = require("../helpers");
+const { HttpError, sendEmail } = require("../helpers");
 
 const { SECRET_KEY } = process.env;
 
@@ -25,12 +27,17 @@ const register = async (req, res) => {
 
   const hashPassword = await bcrypt.hash(password, 10);
   const avatarURL = gravatar.url(email);
+  const verificationCode = uuidv4();
 
   const newUser = await User.create({
     ...req.body,
     password: hashPassword,
     avatarURL,
+    verificationCode,
   });
+
+  await sendEmail(verificationCode);
+
   res.status(201).json({
     email: newUser.email,
     subscription: newUser.subscription,
@@ -38,12 +45,56 @@ const register = async (req, res) => {
   });
 };
 
+async function verifyEmail(req, res) {
+  const { verificationCode } = req.params;
+  const user = await User.findOne({ verificationCode });
+  if (!user) {
+    throw HttpError(404, "User not found");
+  }
+  await User.findByIdAndUpdate(user._id, {
+    verify: true,
+    verificationCode: null,
+  });
+  sendEmail(user.verificationCode);
+
+  res.status(200).json({
+    message: "Verification successful",
+  });
+}
+
+async function resendVerifyEmail(req, res) {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) {
+    throw HttpError(404, "User not found");
+  }
+
+  if (user.verify) {
+    throw HttpError(400, "Verification has already been passed");
+  }
+
+  await User.findByIdAndUpdate(user._id, {
+    verify: true,
+    verificationCode: null,
+  });
+
+  await sendEmail(user.verificationCode);
+
+  res.status(200).json({
+    message: "Verification email sent",
+  });
+}
+
 const login = async (req, res) => {
   const { email, password } = req.body;
 
   const user = await User.findOne({ email });
   if (!user) {
     throw HttpError(401, "Email or password is wrong");
+  }
+
+  if (!user.verify) {
+    throw HttpError(401, "Email not verified");
   }
 
   const passwordCompare = await bcrypt.compare(password, user.password);
@@ -108,4 +159,6 @@ module.exports = {
   getCurrent: ctrlWrapper(getCurrent),
   logout: ctrlWrapper(logout),
   updateAvatar: ctrlWrapper(updateAvatar),
+  verifyEmail: ctrlWrapper(verifyEmail),
+  resendVerifyEmail: ctrlWrapper(resendVerifyEmail),
 };
