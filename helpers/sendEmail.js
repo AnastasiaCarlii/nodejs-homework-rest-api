@@ -17,7 +17,7 @@ const transport = nodemailer.createTransport(nodemailerConfig);
 
 async function sendEmail(verificationCode) {
   const email = {
-    to: "nastjaorosszul@gmail.com",
+    to: "najex81897@laymro.com",
     from: "newmailforwork@meta.ua",
     subject: "Please, verify your email",
     html: `<a target="_blank" href="${BASE_URL}/api/users/verify/${verificationCode}">Click  verify email</a>`,

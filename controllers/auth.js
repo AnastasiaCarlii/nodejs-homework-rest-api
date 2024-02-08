@@ -47,15 +47,16 @@ const register = async (req, res) => {
 
 async function verifyEmail(req, res) {
   const { verificationCode } = req.params;
-  const user = await User.findOne({ verificationCode });
+
+  const user = await User.findOneAndUpdate(
+    { verificationCode },
+    { verify: true, verificationCode: null }
+  );
   if (!user) {
     throw HttpError(404, "User not found");
   }
-  await User.findByIdAndUpdate(user._id, {
-    verify: true,
-    verificationCode: null,
-  });
-  sendEmail(user.verificationCode);
+
+  await sendEmail(user.verificationCode);
 
   res.status(200).json({
     message: "Verification successful",
@@ -72,11 +73,6 @@ async function resendVerifyEmail(req, res) {
   if (user.verify) {
     throw HttpError(400, "Verification has already been passed");
   }
-
-  await User.findByIdAndUpdate(user._id, {
-    verify: true,
-    verificationCode: null,
-  });
 
   await sendEmail(user.verificationCode);
 
